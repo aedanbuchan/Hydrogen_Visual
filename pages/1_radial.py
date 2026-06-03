@@ -20,33 +20,90 @@ def radial_probability(n, l, r):
     R = radial_wavefunction(n, l, r)
     return r**2 * R**2
 
-# ── Streamlit UI ───────────────────────────────────────────────────
+# ── Page config ────────────────────────────────────────────────────
 
 st.title("Radial probability density")
+st.caption("Shows the probability of finding the electron at distance r from the nucleus.")
+
+orbital_names = ['s', 'p', 'd', 'f', 'g']
+
+# ── Sidebar options ────────────────────────────────────────────────
+
+st.sidebar.header("Plot options")
+show_peak    = st.sidebar.checkbox("Show most probable radius", value=True)
+show_nodes   = st.sidebar.checkbox("Show radial nodes", value=True)
+fill         = st.sidebar.checkbox("Fill under curve", value=True)
+compare      = st.sidebar.toggle("Compare all l for this n")
+
+# ── Quantum number sliders ─────────────────────────────────────────
 
 n = st.slider("Principal quantum number (n)", 1, 5, 1)
 l = st.slider("Angular momentum (l)", 0, max(n - 1, 0), 0)
 
 r = np.linspace(0, 4 * n**2 + 10, 1000)
 P = radial_probability(n, l, r)
+r_peak = r[np.argmax(P)]
+
+# ── Metrics row ────────────────────────────────────────────────────
+
+energy_ev = -13.6 / n**2
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Orbital",          f"{n}{orbital_names[l]}")
+col2.metric("Energy",           f"{energy_ev:.2f} eV")
+col3.metric("Radial nodes",     f"{n - l - 1}")
+col4.metric("Most probable r",  f"{r_peak:.2f} a₀")
+
+# ── Plot ───────────────────────────────────────────────────────────
+
+colors = ['royalblue', 'tomato', 'seagreen', 'darkorchid', 'darkorange']
 
 fig, ax = plt.subplots(figsize=(8, 4))
 
-ax.plot(r, P, linewidth=2, color='royalblue')
-ax.fill_between(r, P, alpha=0.15, color='royalblue')
+if compare:
+    for l_i in range(n):
+        P_i = radial_probability(n, l_i, r)
+        label = f"{n}{orbital_names[l_i]}"
+        ax.plot(r, P_i, linewidth=2, color=colors[l_i], label=label)
+        if fill:
+            ax.fill_between(r, P_i, alpha=0.08, color=colors[l_i])
+    ax.legend(fontsize=11)
+else:
+    ax.plot(r, P, linewidth=2, color='royalblue',
+            label=f"{n}{orbital_names[l]}")
+    if fill:
+        ax.fill_between(r, P, alpha=0.15, color='royalblue')
+    if show_peak:
+        ax.axvline(r_peak, color='tomato', linestyle='--', linewidth=1.2,
+                   label=f"Most probable r = {r_peak:.2f} a₀")
+    if show_nodes:
+        zero_crossings = np.where(np.diff(np.sign(P[1:])))[0]
+        for i, zc in enumerate(zero_crossings):
+            ax.axvline(r[zc], color='gray', linestyle=':', linewidth=1,
+                       alpha=0.7, label="Node" if i == 0 else None)
+    ax.legend(fontsize=10)
 
-r_peak = r[np.argmax(P)]
-ax.axvline(r_peak, color='tomato', linestyle='--', linewidth=1.2,
-           label=f"Most probable r = {r_peak:.2f} a₀")
-
-n_nodes = n - l - 1
 ax.set_xlabel("r  (Bohr radii a₀)", fontsize=12)
 ax.set_ylabel("P(r) = r²|R(r)|²", fontsize=12)
-ax.set_title(f"Radial probability density — {n}{['s','p','d','f'][l]} orbital", fontsize=13)
-ax.legend(fontsize=10)
+ax.set_title(
+    f"Radial probability density — "
+    f"{'all l  for n=' + str(n) if compare else str(n) + orbital_names[l] + ' orbital'}",
+    fontsize=13
+)
 ax.set_xlim(0, None)
 ax.set_ylim(0, None)
-ax.text(0.97, 0.95, f"Radial nodes: {n_nodes}",
-        transform=ax.transAxes, ha='right', va='top', fontsize=10, color='gray')
 
 st.pyplot(fig)
+
+# ── Expander with explanation ──────────────────────────────────────
+
+with st.expander("What am I looking at?"):
+    st.markdown(f"""
+    **P(r) = r²|R(r)|²** is the radial probability density. It tells you the 
+    probability of finding the electron in a thin shell at distance **r** from 
+    the nucleus, integrated over all angles.
+
+    - The **peak** at r = {r_peak:.2f} a₀ is the most likely distance
+    - There are **{n - l - 1}** radial nodes where the probability drops to zero
+    - Higher **n** pushes the electron further from the nucleus
+    - Higher **l** suppresses the probability near the nucleus
+    """)
