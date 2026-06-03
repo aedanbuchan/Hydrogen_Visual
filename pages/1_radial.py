@@ -30,15 +30,22 @@ orbital_names = ['s', 'p', 'd', 'f', 'g']
 # ── Sidebar options ────────────────────────────────────────────────
 
 st.sidebar.header("Plot options")
-show_peak    = st.sidebar.checkbox("Show most probable radius", value=True)
-show_nodes   = st.sidebar.checkbox("Show radial nodes", value=True)
-fill         = st.sidebar.checkbox("Fill under curve", value=True)
-compare      = st.sidebar.toggle("Compare all l for this n")
+show_peak  = st.sidebar.checkbox("Show most probable radius", value=True)
+show_nodes = st.sidebar.checkbox("Show radial nodes", value=True)
+fill       = st.sidebar.checkbox("Fill under curve", value=True)
+compare    = st.sidebar.toggle("Compare all l for this n")
 
 # ── Quantum number sliders ─────────────────────────────────────────
 
 n = st.slider("Principal quantum number (n)", 1, 5, 1)
-l = st.slider("Angular momentum (l)", 0, max(n - 1, 0), 0)
+
+if n == 1:
+    l = 0
+    st.info("For n=1, l can only be 0  (1s orbital)")
+else:
+    l = st.slider("Angular momentum (l)", 0, n - 1, 0)
+
+# ── Compute ────────────────────────────────────────────────────────
 
 r = np.linspace(0, 4 * n**2 + 10, 1000)
 P = radial_probability(n, l, r)
@@ -48,10 +55,10 @@ r_peak = r[np.argmax(P)]
 
 energy_ev = -13.6 / n**2
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Orbital",          f"{n}{orbital_names[l]}")
-col2.metric("Energy",           f"{energy_ev:.2f} eV")
-col3.metric("Radial nodes",     f"{n - l - 1}")
-col4.metric("Most probable r",  f"{r_peak:.2f} a₀")
+col1.metric("Orbital",         f"{n}{orbital_names[l]}")
+col2.metric("Energy",          f"{energy_ev:.2f} eV")
+col3.metric("Radial nodes",    f"{n - l - 1}")
+col4.metric("Most probable r", f"{r_peak:.2f} a₀")
 
 # ── Plot ───────────────────────────────────────────────────────────
 
@@ -98,8 +105,8 @@ st.pyplot(fig)
 
 with st.expander("What am I looking at?"):
     st.markdown(f"""
-    **P(r) = r²|R(r)|²** is the radial probability density. It tells you the 
-    probability of finding the electron in a thin shell at distance **r** from 
+    **P(r) = r²|R(r)|²** is the radial probability density. It tells you the
+    probability of finding the electron in a thin shell at distance **r** from
     the nucleus, integrated over all angles.
 
     - The **peak** at r = {r_peak:.2f} a₀ is the most likely distance
