@@ -1,7 +1,8 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.special import genlaguerre, sph_harm, factorial
+from scipy.special import genlaguerre, sph_harm
+from math import factorial
 
 # ── Physics functions ──────────────────────────────────────────────
 
