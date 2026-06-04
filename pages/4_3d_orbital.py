@@ -210,6 +210,8 @@ if use_complex:
 else:
     density_values = values ** 2           # signed ψ is not physical density
 
+cutoff_value = np.percentile(density_values, density_cutoff)
+
 # ── Log version for volume rendering ────────────────────────
 log_density = np.log10(
     np.maximum(density_values, 1e-20)
@@ -316,16 +318,20 @@ if render_mode == "Isosurface":
 
 elif render_mode == "Electron cloud":
 
-    density = density_values
+   density = density_values.copy()
 
+density = np.where(
+    density >= cutoff_value,
+    density,
+    0
+)
     cx, cy, cz, cd = sample_electron_cloud(
-        X,
-        Y,
-        Z,
-        density,
-        cloud_points
-    )
-
+    X,
+    Y,
+    Z,
+    density,
+    cloud_points
+)
     fig.add_trace(
         go.Scatter3d(
             x=cx,
