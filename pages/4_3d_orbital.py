@@ -100,6 +100,7 @@ def compute_wavefunction_3d(n, l, m, grid_size, use_complex):
 
     return coords, coords, coords, values, phase
 
+
 # ── Page config ────────────────────────────────────────────────────
 
 st.title("3D orbital viewer")
@@ -133,6 +134,18 @@ isovalue = st.sidebar.slider(
     min_value=1, max_value=99, value=85,
     help="Higher = smaller surface closer to the peak density"
 ) / 100.0
+
+density_cutoff = st.sidebar.slider(
+    "Density cutoff (%)",
+    min_value=0.0,
+    max_value=99.9,
+    value=95.0,
+    step=0.5,
+    help=(
+        "Discard the lowest-density regions. "
+        "Higher values show only the most probable electron locations."
+    )
+)
 
 opacity = st.sidebar.slider("Opacity", 10, 100, 60) / 100.0
 
@@ -191,17 +204,22 @@ with st.spinner("Computing wavefunction..."):
 
 X, Y, Z = np.meshgrid(x, y, z)
 
-density_values = values.copy()
-
+# ── Convert to physical density ─────────────────────────────
 if use_complex:
-    density_values = np.abs(values)
+    density_values = np.abs(values) ** 2   # |ψ|² is correct probability
+else:
+    density_values = values ** 2           # signed ψ is not physical density
 
+# ── Log version for volume rendering ────────────────────────
 log_density = np.log10(
     np.maximum(density_values, 1e-20)
 )
 
-# Threshold for isosurface
-threshold = np.percentile(values, isovalue * 100)
+# ── Isosurface threshold (keep your existing UI control) ────
+threshold = np.percentile(
+    density_values,
+    isovalue * 100
+)
 
 # ── Build figure ───────────────────────────────────────────────────
 
@@ -298,7 +316,7 @@ if render_mode == "Isosurface":
 
 elif render_mode == "Electron cloud":
 
-    density = np.abs(values)
+    density = density_values
 
     cx, cy, cz, cd = sample_electron_cloud(
         X,
