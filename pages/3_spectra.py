@@ -221,7 +221,9 @@ fig.update_layout(
     yaxis=dict(
         title="Energy (eV)",
         range=[y_pos(1) - 1, 0.8],
-        gridcolor="rgba(200,200,200,0.2)"
+        gridcolor="rgba(200,200,200,0.2)",
+        showticklabels=False,
+        ticks=""
     ),
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)"
