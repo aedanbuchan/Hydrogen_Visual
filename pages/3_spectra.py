@@ -66,6 +66,7 @@ N_LEVELS = 7   # number of levels to draw
 
 st.sidebar.header("Options")
 show_all_series = st.sidebar.toggle("Show all Balmer series lines", value=False)
+equal_spacing = st.sidebar.toggle("Equal Level Spacing", value=False)
 
 # ── Level selectors ────────────────────────────────────────────────
 
@@ -103,6 +104,16 @@ m3.metric("Wavelength",      f"{wavelength:.1f} nm" if wavelength else "—")
 m4.metric("Region",          region)
 st.divider()
 
+
+# ── Y pos helper ─────────────────────────────
+
+def y_pos(n):
+    """Return y-axis values for levels of n in diagram""" 
+    if equal_spacing:
+        y_min, y_max = energy(1), energy(N_LEVELS)
+        return y_min + (y_max - y_min) * (n - 1) / (N_LEVELS - 1)
+return energy(n)
+
 # ── Build Plotly energy level diagram ─────────────────────────────
 
 fig = go.Figure()
@@ -113,7 +124,7 @@ label_x   = 0.82          # x position of energy labels
 n_label_x = 0.17          # x position of n= labels
 
 for n in range(1, N_LEVELS + 1):
-    e = energy(n)
+    e = y_pos(n)
     # Energy level line
     is_active = (n == n_i or n == n_f)
     fig.add_shape(
@@ -158,8 +169,8 @@ fig.add_annotation(
 )
 
 # Transition arrow
-e_initial = energy(n_i)
-e_final   = energy(n_f)
+e_initial = y_pos(n_i)
+e_final   = y_pos(n_f)
 
 fig.add_annotation(
     x=arrow_x, y=e_final,
@@ -176,7 +187,7 @@ fig.add_annotation(
 # Wavelength label on arrow
 fig.add_annotation(
     x=arrow_x + 0.04,
-    y=(e_initial + e_final) / 2,
+    y=(y_pos(n_i) + y_pos(n_f)) / 2,
     text=f"<b>{wavelength:.1f} nm</b><br>{series}",
     showarrow=False,
     xanchor="left",
@@ -188,8 +199,8 @@ if show_all_series:
     for n_upper in range(3, N_LEVELS + 1):
         wl = transition_wavelength_nm(n_upper, 2)
         col = wavelength_to_rgb(wl)
-        e_up = energy(n_upper)
-        e_dn = energy(2)
+        e_up = y_pos(n_upper)
+        e_dn = y_pos(2)
         fig.add_annotation(
             x=arrow_x - 0.08, y=e_dn,
             ax=arrow_x - 0.08, ay=e_up,
@@ -209,7 +220,7 @@ fig.update_layout(
     xaxis=dict(visible=False, range=[0, 1]),
     yaxis=dict(
         title="Energy (eV)",
-        range=[-14.5, 0.8],
+        range=[y_pos(N_LEVELS) - 1, 0.8],
         gridcolor="rgba(200,200,200,0.2)"
     ),
     plot_bgcolor="rgba(0,0,0,0)",
