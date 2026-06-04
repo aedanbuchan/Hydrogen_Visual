@@ -51,7 +51,7 @@ def hydrogen_wavefunction_2d(n, l, m, grid_size=300):
 st.title("2D orbital cross-section")
 st.caption("Probability density |ψ|² on the x-z plane. Hover to read values, scroll to zoom.")
 
-orbital_names = ['s', 'p', 'd', 'f', 'g']
+orbital_names = ['s', 'p', 'd', 'f', 'g', 'h','i','j']
 
 # ── Sidebar options ────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ grid_size = st.sidebar.select_slider(
 
 # ── Quantum number sliders ─────────────────────────────────────────
 
-n = st.slider("Principal quantum number (n)", 1, 5, 2)
+n = st.slider("Principal quantum number (n)", 1, 8, 2)
 
 if n == 1:
     l = 0
