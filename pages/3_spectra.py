@@ -194,26 +194,6 @@ fig.add_annotation(
     font=dict(size=12, color=arrow_col)
 )
 
-# Optional: all Balmer series lines
-if show_all_series:
-    for n_upper in range(3, N_LEVELS + 1):
-        wl = transition_wavelength_nm(n_upper, 2)
-        col = wavelength_to_rgb(wl)
-        e_up = y_pos(n_upper)
-        e_dn = y_pos(2)
-        fig.add_annotation(
-            x=arrow_x - 0.08, y=e_dn,
-            ax=arrow_x - 0.08, ay=e_up,
-            xref="x", yref="y",
-            axref="x", ayref="y",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=1.5,
-            arrowcolor=col,
-            opacity=0.4
-        )
-
 fig.update_layout(
     height=600,
     margin=dict(l=20, r=20, t=30, b=20),
