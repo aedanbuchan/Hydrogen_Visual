@@ -1,7 +1,8 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.special import genlaguerre, factorial
+import plotly.graph_objects as go
+from scipy.special import genlaguerre
+from math import factorial
 
 # ── Physics functions ──────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ def radial_probability(n, l, r):
 # ── Page config ────────────────────────────────────────────────────
 
 st.title("Radial probability density")
-st.caption("Shows the probability of finding the electron at distance r from the nucleus.")
+st.caption("Probability of finding the electron at distance r from the nucleus.")
 
 orbital_names = ['s', 'p', 'd', 'f', 'g']
 
@@ -50,67 +51,93 @@ else:
 r = np.linspace(0, 4 * n**2 + 10, 1000)
 P = radial_probability(n, l, r)
 r_peak = r[np.argmax(P)]
+energy_ev = -13.6 / n**2
 
 # ── Metrics row ────────────────────────────────────────────────────
 
-energy_ev = -13.6 / n**2
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Orbital",         f"{n}{orbital_names[l]}")
 col2.metric("Energy",          f"{energy_ev:.2f} eV")
 col3.metric("Radial nodes",    f"{n - l - 1}")
 col4.metric("Most probable r", f"{r_peak:.2f} a₀")
 
-# ── Plot ───────────────────────────────────────────────────────────
+# ── Plotly figure ──────────────────────────────────────────────────
 
 colors = ['royalblue', 'tomato', 'seagreen', 'darkorchid', 'darkorange']
 
-fig, ax = plt.subplots(figsize=(8, 4))
+fig = go.Figure()
 
 if compare:
     for l_i in range(n):
         P_i = radial_probability(n, l_i, r)
-        label = f"{n}{orbital_names[l_i]}"
-        ax.plot(r, P_i, linewidth=2, color=colors[l_i], label=label)
-        if fill:
-            ax.fill_between(r, P_i, alpha=0.08, color=colors[l_i])
-    ax.legend(fontsize=11)
+        name = f"{n}{orbital_names[l_i]}"
+        fig.add_trace(go.Scatter(
+            x=r, y=P_i,
+            mode='lines',
+            name=name,
+            line=dict(color=colors[l_i], width=2),
+            fill='tozeroy' if fill else 'none',
+            fillcolor=f'rgba({",".join(str(int(c*255)) for c in plt_to_rgb(colors[l_i]))},0.08)' if fill else None,
+            hovertemplate=f"<b>{name}</b><br>r = %{{x:.2f}} a₀<br>P(r) = %{{y:.4f}}<extra></extra>"
+        ))
 else:
-    ax.plot(r, P, linewidth=2, color='royalblue',
-            label=f"{n}{orbital_names[l]}")
-    if fill:
-        ax.fill_between(r, P, alpha=0.15, color='royalblue')
+    # Main curve
+    fig.add_trace(go.Scatter(
+        x=r, y=P,
+        mode='lines',
+        name=f"{n}{orbital_names[l]}",
+        line=dict(color='royalblue', width=2.5),
+        fill='tozeroy' if fill else 'none',
+        fillcolor='rgba(65,105,225,0.12)' if fill else None,
+        hovertemplate="r = %{x:.2f} a₀<br>P(r) = %{y:.6f}<extra></extra>"
+    ))
+
+    # Most probable radius line
     if show_peak:
-        ax.axvline(r_peak, color='tomato', linestyle='--', linewidth=1.2,
-                   label=f"Most probable r = {r_peak:.2f} a₀")
+        fig.add_vline(
+            x=r_peak,
+            line=dict(color='tomato', dash='dash', width=1.5),
+            annotation_text=f"r = {r_peak:.2f} a₀",
+            annotation_position="top right",
+            annotation_font_color='tomato'
+        )
+
+    # Radial nodes
     if show_nodes:
         zero_crossings = np.where(np.diff(np.sign(P[1:])))[0]
         for i, zc in enumerate(zero_crossings):
-            ax.axvline(r[zc], color='gray', linestyle=':', linewidth=1,
-                       alpha=0.7, label="Node" if i == 0 else None)
-    ax.legend(fontsize=10)
+            fig.add_vline(
+                x=r[zc],
+                line=dict(color='gray', dash='dot', width=1),
+                annotation_text="node" if i == 0 else "",
+                annotation_font_color='gray',
+                annotation_position="top left"
+            )
 
-ax.set_xlabel("r  (Bohr radii a₀)", fontsize=12)
-ax.set_ylabel("P(r) = r²|R(r)|²", fontsize=12)
-ax.set_title(
-    f"Radial probability density — "
-    f"{'all l  for n=' + str(n) if compare else str(n) + orbital_names[l] + ' orbital'}",
-    fontsize=13
+fig.update_layout(
+    xaxis_title="r  (Bohr radii a₀)",
+    yaxis_title="P(r) = r²|R(r)|²",
+    title=f"Radial probability density — "
+          f"{'all l for n=' + str(n) if compare else str(n) + orbital_names[l] + ' orbital'}",
+    hovermode="x unified",
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    margin=dict(t=60, b=40),
+    height=450
 )
-ax.set_xlim(0, None)
-ax.set_ylim(0, None)
 
-st.pyplot(fig)
+st.plotly_chart(fig, use_container_width=True)
 
-# ── Expander with explanation ──────────────────────────────────────
+# ── Expander ───────────────────────────────────────────────────────
 
 with st.expander("What am I looking at?"):
     st.markdown(f"""
-    **P(r) = r²|R(r)|²** is the radial probability density. It tells you the
-    probability of finding the electron in a thin shell at distance **r** from
-    the nucleus, integrated over all angles.
+    **P(r) = r²|R(r)|²** is the radial probability density — the probability of 
+    finding the electron in a thin shell at distance **r** from the nucleus.
 
     - The **peak** at r = {r_peak:.2f} a₀ is the most likely distance
     - There are **{n - l - 1}** radial nodes where the probability drops to zero
     - Higher **n** pushes the electron further from the nucleus
     - Higher **l** suppresses the probability near the nucleus
+
+    💡 **Tip:** Hover over the plot to read exact values. Click legend items to toggle traces.
     """)
