@@ -220,7 +220,7 @@ fig.update_layout(
     xaxis=dict(visible=False, range=[0, 1]),
     yaxis=dict(
         title="Energy (eV)",
-        range=[y_pos(N_LEVELS) - 1, 0.8],
+        range=[y_pos(1) - 1, 0.8],
         gridcolor="rgba(200,200,200,0.2)"
     ),
     plot_bgcolor="rgba(0,0,0,0)",
