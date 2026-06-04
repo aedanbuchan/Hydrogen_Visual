@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="Hydrogen Atom Visualiser", layout="wide")
+st.set_page_config(layout="wide")
 
 st.title("Hydrogen atom visualiser")
 st.markdown("""
