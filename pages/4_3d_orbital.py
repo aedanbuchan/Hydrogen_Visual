@@ -387,7 +387,7 @@ fig.add_trace(go.Scatter3d(
 
 extent = 4 * n**2
 fig.update_layout(
-    height=620,
+    height=820,
     margin=dict(l=0, r=0, t=40, b=0),
     title=f"{n}{orbital_names[l]} orbital  (m={m})  —  "
           f"{'Complex |ψ|²' if use_complex else 'Real ψ (blue=+, red=−)'}",
