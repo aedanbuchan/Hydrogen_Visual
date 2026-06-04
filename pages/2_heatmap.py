@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from scipy.special import genlaguerre, lpmv
 from math import factorial
 
@@ -18,7 +18,6 @@ def radial_wavefunction(n, l, r):
     return norm * np.exp(-rho / 2) * rho**l * L(rho)
 
 def spherical_harmonic(l, m, theta, phi):
-    """Real spherical harmonic Y_lm."""
     m_abs = abs(m)
     norm = np.sqrt(
         (2 * l + 1) / (4 * np.pi) *
@@ -45,21 +44,27 @@ def hydrogen_wavefunction_2d(n, l, m, grid_size=300):
     psi_r = radial_wavefunction(n, l, R)
     psi_ang = spherical_harmonic(l, m, theta, phi)
     density = (psi_r * psi_ang)**2
-    return X, Z, density
+    return x, z, density
 
 # ── Page config ────────────────────────────────────────────────────
 
 st.title("2D orbital cross-section")
-st.caption("Probability density |ψ|² shown as a heatmap on the x-z plane (y=0).")
+st.caption("Probability density |ψ|² on the x-z plane. Hover to read values, scroll to zoom.")
 
 orbital_names = ['s', 'p', 'd', 'f', 'g']
 
 # ── Sidebar options ────────────────────────────────────────────────
 
 st.sidebar.header("Plot options")
-colormap = st.sidebar.selectbox("Colourmap", ['magma', 'inferno', 'viridis', 'plasma', 'hot'], index=0)
+colormap = st.sidebar.selectbox(
+    "Colourmap",
+    ['Hot', 'Magma', 'Plasma', 'Viridis', 'Inferno', 'Turbo'],
+    index=0
+)
 show_nucleus = st.sidebar.checkbox("Show nucleus", value=True)
-grid_size = st.sidebar.select_slider("Resolution", options=[100, 200, 300, 400], value=200)
+grid_size = st.sidebar.select_slider(
+    "Resolution", options=[100, 200, 300, 400], value=200
+)
 
 # ── Quantum number sliders ─────────────────────────────────────────
 
@@ -79,54 +84,67 @@ else:
 
 # ── Compute ────────────────────────────────────────────────────────
 
-X, Z, density = hydrogen_wavefunction_2d(n, l, m, grid_size=grid_size)
+x, z, density = hydrogen_wavefunction_2d(n, l, m, grid_size=grid_size)
+energy_ev = -13.6 / n**2
+vmax = float(np.percentile(density, 99))
 
 # ── Metrics row ────────────────────────────────────────────────────
 
-energy_ev = -13.6 / n**2
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Orbital",        f"{n}{orbital_names[l]}")
-col2.metric("Energy",         f"{energy_ev:.2f} eV")
-col3.metric("Angular nodes",  f"{l}")
-col4.metric("Radial nodes",   f"{n - l - 1}")
+col1.metric("Orbital",       f"{n}{orbital_names[l]}")
+col2.metric("Energy",        f"{energy_ev:.2f} eV")
+col3.metric("Angular nodes", f"{l}")
+col4.metric("Radial nodes",  f"{n - l - 1}")
 
-# ── Plot ───────────────────────────────────────────────────────────
+# ── Plotly heatmap ─────────────────────────────────────────────────
+
+fig = go.Figure()
+
+fig.add_trace(go.Heatmap(
+    x=x,
+    z=density,
+    y=z,
+    colorscale=colormap,
+    zmin=0,
+    zmax=vmax,
+    colorbar=dict(title="|ψ|²"),
+    hovertemplate="x = %{x:.2f} a₀<br>z = %{y:.2f} a₀<br>|ψ|² = %{z:.4e}<extra></extra>"
+))
+
+# Nucleus marker
+if show_nucleus:
+    fig.add_trace(go.Scatter(
+        x=[0], y=[0],
+        mode='markers',
+        marker=dict(symbol='cross', size=12, color='white', line=dict(width=2)),
+        name='Nucleus',
+        hovertemplate="Nucleus<extra></extra>"
+    ))
 
 extent = 4 * n**2
-vmax = np.percentile(density, 99)
-
-fig, ax = plt.subplots(figsize=(6, 6))
-im = ax.imshow(
-    density,
-    extent=[-extent, extent, -extent, extent],
-    origin='lower',
-    cmap=colormap,
-    vmin=0,
-    vmax=vmax
+fig.update_layout(
+    xaxis_title="x  (Bohr radii a₀)",
+    yaxis_title="z  (Bohr radii a₀)",
+    title=f"Hydrogen |ψ|²  —  {n}{orbital_names[l]}  (m={m})",
+    xaxis=dict(range=[-extent, extent]),
+    yaxis=dict(range=[-extent, extent], scaleanchor="x", scaleratio=1),
+    height=550,
+    margin=dict(t=60, b=40)
 )
 
-if show_nucleus:
-    ax.plot(0, 0, 'w+', markersize=12, markeredgewidth=2)
+st.plotly_chart(fig, use_container_width=True)
 
-cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-cbar.set_label("|ψ|²  (probability density)", fontsize=10)
-
-ax.set_xlabel("x  (Bohr radii a₀)", fontsize=12)
-ax.set_ylabel("z  (Bohr radii a₀)", fontsize=12)
-ax.set_title(f"Hydrogen |ψ|²  —  {n}{orbital_names[l]}  (m={m})", fontsize=13)
-
-st.pyplot(fig)
-
-# ── Expander with explanation ──────────────────────────────────────
+# ── Expander ───────────────────────────────────────────────────────
 
 with st.expander("What am I looking at?"):
     st.markdown(f"""
-    This is a cross-section through the **x-z plane** (y=0) showing where the 
-    electron is most likely to be found. Brighter regions = higher probability.
+    A cross-section through the **x-z plane** (y=0). Brighter = higher probability of 
+    finding the electron there.
 
-    - **n={n}** — principal quantum number, sets the energy shell
-    - **l={l}** — angular momentum, determines orbital shape ({orbital_names[l]}-type)
-    - **m={m}** — magnetic quantum number, sets the orientation
-    - There are **{l}** angular nodes and **{n - l - 1}** radial nodes
-    - The white **+** marks the nucleus at the origin
+    - **n={n}** sets the energy shell — higher n spreads the orbital further out
+    - **l={l}** sets the shape — {orbital_names[l]}-type orbital
+    - **m={m}** sets the orientation around the z-axis
+    - **{l}** angular nodes and **{n - l - 1}** radial nodes
+
+    💡 **Tip:** Scroll to zoom, click and drag to pan, hover for exact values.
     """)
