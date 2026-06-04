@@ -112,7 +112,7 @@ def y_pos(n):
     if equal_spacing:
         y_min, y_max = energy(1), energy(N_LEVELS)
         return y_min + (y_max - y_min) * (n - 1) / (N_LEVELS - 1)
-return energy(n)
+    return energy(n)
 
 # ── Build Plotly energy level diagram ─────────────────────────────
 
