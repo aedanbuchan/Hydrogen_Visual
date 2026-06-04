@@ -318,20 +318,22 @@ if render_mode == "Isosurface":
 
 elif render_mode == "Electron cloud":
 
-   density = density_values.copy()
+    density = density_values.copy()
 
-density = np.where(
-    density >= cutoff_value,
-    density,
-    0
-)
+    density = np.where(
+        density >= cutoff_value,
+        density,
+        0
+    )
+
     cx, cy, cz, cd = sample_electron_cloud(
-    X,
-    Y,
-    Z,
-    density,
-    cloud_points
-)
+        X,
+        Y,
+        Z,
+        density,
+        cloud_points
+    )
+
     fig.add_trace(
         go.Scatter3d(
             x=cx,
@@ -344,15 +346,12 @@ density = np.where(
                 color=np.log10(cd + 1e-20),
                 colorscale=colorscale,
                 showscale=True,
-                colorbar=dict(
-                    title="log density"
-                )
+                colorbar=dict(title="log density")
             ),
             hoverinfo="skip",
             name="Electron cloud"
         )
     )
-
 else:
 
     fig.add_trace(
