@@ -12,7 +12,7 @@ def radial_wavefunction(n, l, r):
     norm = np.sqrt(
         (2 / (n * a0))**3 *
         factorial(n - l - 1) /
-        (2 * n * factorial(n + l)**3)
+        (2 * n * factorial(n + l))
     )
     L = genlaguerre(n - l - 1, 2 * l + 1)
     return norm * np.exp(-rho / 2) * rho**l * L(rho)
@@ -44,6 +44,32 @@ def spherical_harmonic_complex(l, m, theta, phi):
     imag_part = norm * P * np.sin(m * phi)
     return real_part, imag_part
 
+def sample_electron_cloud(X, Y, Z, density, n_points=50000):
+    probs = density.flatten().astype(np.float64)
+
+    probs = np.maximum(probs, 0)
+
+    total = probs.sum()
+
+    if total == 0:
+        raise ValueError("Probability density is zero everywhere.")
+
+    probs /= total
+
+    idx = np.random.choice(
+        len(probs),
+        size=min(n_points, len(probs)),
+        replace=True,
+        p=probs
+    )
+
+    return (
+        X.flatten()[idx],
+        Y.flatten()[idx],
+        Z.flatten()[idx],
+        probs[idx]
+    )
+    
 def compute_wavefunction_3d(n, l, m, grid_size, use_complex):
     """
     Returns x, y, z grids and wavefunction values on a 3D grid.
@@ -87,7 +113,11 @@ st.sidebar.header("Render options")
 
 render_mode = st.sidebar.radio(
     "Render mode",
-    ["Isosurface", "Volume cloud"],
+    [
+        "Isosurface",
+        "Electron cloud",
+        "Volume (experimental)"
+    ],
     index=0
 )
 
@@ -111,6 +141,14 @@ grid_size = st.sidebar.select_slider(
     options=[20, 30, 40, 50],
     value=30,
     help="Higher = smoother but slower to compute"
+)
+
+cloud_points = st.sidebar.slider(
+    "Cloud particles",
+    min_value=5000,
+    max_value=100000,
+    value=40000,
+    step=5000
 )
 
 colorscale = st.sidebar.selectbox(
@@ -153,6 +191,15 @@ with st.spinner("Computing wavefunction..."):
 
 X, Y, Z = np.meshgrid(x, y, z)
 
+density_values = values.copy()
+
+if use_complex:
+    density_values = np.abs(values)
+
+log_density = np.log10(
+    np.maximum(density_values, 1e-20)
+)
+
 # Threshold for isosurface
 threshold = np.percentile(values, isovalue * 100)
 
@@ -161,78 +208,150 @@ threshold = np.percentile(values, isovalue * 100)
 fig = go.Figure()
 
 if render_mode == "Isosurface":
+
     if use_complex:
-        # Single isosurface coloured by density value
-        fig.add_trace(go.Isosurface(
-            x=X.flatten(),
-            y=Y.flatten(),
-            z=Z.flatten(),
-            value=values.flatten(),
-            isomin=threshold,
-            isomax=float(values.max()),
-            surface_count=2,
-            colorscale=colorscale,
-            opacity=opacity,
-            caps=dict(x_show=False, y_show=False, z_show=False),
-            showscale=True,
-            colorbar=dict(title="|ψ|²"),
-            hovertemplate="x=%{x:.1f}<br>y=%{y:.1f}<br>z=%{z:.1f}<br>|ψ|²=%{value:.4e}<extra></extra>"
-        ))
+
+        fig.add_trace(
+            go.Isosurface(
+                x=X.flatten(),
+                y=Y.flatten(),
+                z=Z.flatten(),
+                value=values.flatten(),
+                isomin=threshold,
+                isomax=float(values.max()),
+                surface_count=2,
+                colorscale=colorscale,
+                opacity=opacity,
+                caps=dict(
+                    x_show=False,
+                    y_show=False,
+                    z_show=False
+                ),
+                showscale=True,
+                colorbar=dict(title="|ψ|²"),
+                hovertemplate=(
+                    "x=%{x:.1f}<br>"
+                    "y=%{y:.1f}<br>"
+                    "z=%{z:.1f}<br>"
+                    "|ψ|²=%{value:.4e}"
+                    "<extra></extra>"
+                )
+            )
+        )
+
     else:
-        # Two isosurfaces coloured by phase (+/-)
-        # Positive lobe
+
         pos_vals = np.where(phase > 0, values, 0.0)
         neg_vals = np.where(phase < 0, values, 0.0)
 
         if pos_vals.max() > threshold:
-            fig.add_trace(go.Isosurface(
-                x=X.flatten(),
-                y=Y.flatten(),
-                z=Z.flatten(),
-                value=pos_vals.flatten(),
-                isomin=threshold,
-                isomax=float(pos_vals.max()),
-                surface_count=1,
-                colorscale=[[0, "royalblue"], [1, "royalblue"]],
-                showscale=False,
-                opacity=opacity,
-                caps=dict(x_show=False, y_show=False, z_show=False),
-                name="+ phase",
-                hovertemplate="+ lobe<br>x=%{x:.1f} y=%{y:.1f} z=%{z:.1f}<extra></extra>"
-            ))
+
+            fig.add_trace(
+                go.Isosurface(
+                    x=X.flatten(),
+                    y=Y.flatten(),
+                    z=Z.flatten(),
+                    value=pos_vals.flatten(),
+                    isomin=threshold,
+                    isomax=float(pos_vals.max()),
+                    surface_count=1,
+                    colorscale=[
+                        [0, "royalblue"],
+                        [1, "royalblue"]
+                    ],
+                    opacity=opacity,
+                    showscale=False,
+                    caps=dict(
+                        x_show=False,
+                        y_show=False,
+                        z_show=False
+                    ),
+                    name="+ phase"
+                )
+            )
 
         if neg_vals.max() > threshold:
-            fig.add_trace(go.Isosurface(
-                x=X.flatten(),
-                y=Y.flatten(),
-                z=Z.flatten(),
-                value=neg_vals.flatten(),
-                isomin=threshold,
-                isomax=float(neg_vals.max()),
-                surface_count=1,
-                colorscale=[[0, "tomato"], [1, "tomato"]],
-                showscale=False,
-                opacity=opacity,
-                caps=dict(x_show=False, y_show=False, z_show=False),
-                name="− phase",
-                hovertemplate="− lobe<br>x=%{x:.1f} y=%{y:.1f} z=%{z:.1f}<extra></extra>"
-            ))
 
-else:  # Volume cloud
-    fig.add_trace(go.Volume(
-        x=X.flatten(),
-        y=Y.flatten(),
-        z=Z.flatten(),
-        value=values.flatten(),
-        isomin=float(np.percentile(values, 50)),
-        isomax=float(values.max()),
-        opacity=0.08,
-        surface_count=20,
-        colorscale=colorscale,
-        caps=dict(x_show=False, y_show=False, z_show=False),
-        colorbar=dict(title="|ψ|²" if use_complex else "|ψ|"),
-        hovertemplate="x=%{x:.1f}<br>y=%{y:.1f}<br>z=%{z:.1f}<extra></extra>"
-    ))
+            fig.add_trace(
+                go.Isosurface(
+                    x=X.flatten(),
+                    y=Y.flatten(),
+                    z=Z.flatten(),
+                    value=neg_vals.flatten(),
+                    isomin=threshold,
+                    isomax=float(neg_vals.max()),
+                    surface_count=1,
+                    colorscale=[
+                        [0, "tomato"],
+                        [1, "tomato"]
+                    ],
+                    opacity=opacity,
+                    showscale=False,
+                    caps=dict(
+                        x_show=False,
+                        y_show=False,
+                        z_show=False
+                    ),
+                    name="− phase"
+                )
+            )
+
+elif render_mode == "Electron cloud":
+
+    density = np.abs(values)
+
+    cx, cy, cz, cd = sample_electron_cloud(
+        X,
+        Y,
+        Z,
+        density,
+        cloud_points
+    )
+
+    fig.add_trace(
+        go.Scatter3d(
+            x=cx,
+            y=cy,
+            z=cz,
+            mode="markers",
+            marker=dict(
+                size=2,
+                opacity=0.12,
+                color=np.log10(cd + 1e-20),
+                colorscale=colorscale,
+                showscale=True,
+                colorbar=dict(
+                    title="log density"
+                )
+            ),
+            hoverinfo="skip",
+            name="Electron cloud"
+        )
+    )
+
+else:
+
+    fig.add_trace(
+        go.Volume(
+            x=X.flatten(),
+            y=X.flatten(),
+            z=Z.flatten(),
+            value=log_density.flatten(),
+            isomin=-5,
+            isomax=float(log_density.max()),
+            opacity=0.03,
+            surface_count=25,
+            colorscale=colorscale,
+            caps=dict(
+                x_show=False,
+                y_show=False,
+                z_show=False
+            ),
+            colorbar=dict(
+                title="log density"
+            )
+        )
+    )
 
 # Nucleus marker
 fig.add_trace(go.Scatter3d(
