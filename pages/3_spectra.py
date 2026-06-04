@@ -65,7 +65,7 @@ N_LEVELS = 7   # number of levels to draw
 # ── Sidebar ────────────────────────────────────────────────────────
 
 st.sidebar.header("Options")
-show_all_series = st.sidebar.toggle("Show all Balmer series lines", value=False)
+#show_all_series = st.sidebar.toggle("Show all Balmer series lines", value=False)
 equal_spacing = st.sidebar.toggle("Equal Level Spacing", value=False)
 
 # ── Level selectors ────────────────────────────────────────────────
